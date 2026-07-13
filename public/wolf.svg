@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 380" role="img" aria-label="Menacing wolf guardian with glowing red eyes">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="33%" r="62%">
+      <stop offset="0%" stop-color="#ff2020"/>
+      <stop offset="42%" stop-color="#7d0000"/>
+      <stop offset="100%" stop-color="#0a0000"/>
+    </radialGradient>
+    <radialGradient id="eye" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff2f2"/>
+      <stop offset="35%" stop-color="#ff2a2a"/>
+      <stop offset="100%" stop-color="#8b0000"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="300" height="380" fill="url(#glow)"/>
+
+  <!-- bare, clawing branches -->
+  <g stroke="#1a0505" stroke-width="3" fill="none" opacity="0.85" stroke-linecap="round">
+    <path d="M0 72 C40 82 60 60 96 80 M58 72 L50 52 M80 76 L88 54 M96 80 L112 66"/>
+    <path d="M300 62 C260 76 240 54 204 78 M242 68 L252 48 M214 74 L205 52 M204 78 L188 64"/>
+  </g>
+
+  <!-- hulking silhouette -->
+  <g fill="#070303">
+    <!-- ears -->
+    <path d="M108 122 L90 58 L142 106 Z"/>
+    <path d="M192 122 L210 58 L158 106 Z"/>
+    <!-- head, shoulders, hunched body -->
+    <path d="M150 92 C112 92 96 126 100 168 C102 196 90 214 95 250
+             C72 258 56 286 58 330 C58 352 65 366 65 366 L235 366
+             C235 366 242 352 242 330 C244 286 228 258 205 250
+             C210 214 198 196 200 168 C204 126 188 92 150 92 Z"/>
+    <!-- claws -->
+    <path d="M95 300 C79 316 73 336 79 357 C87 340 92 322 104 314 Z"/>
+    <path d="M205 300 C221 316 227 336 221 357 C213 340 208 322 196 314 Z"/>
+  </g>
+
+  <!-- glowing eyes -->
+  <g>
+    <ellipse cx="131" cy="151" rx="12" ry="8" fill="url(#eye)"/>
+    <ellipse cx="169" cy="151" rx="12" ry="8" fill="url(#eye)"/>
+    <circle cx="131" cy="151" r="2.6" fill="#ffffff"/>
+    <circle cx="169" cy="151" r="2.6" fill="#ffffff"/>
+  </g>
+</svg>

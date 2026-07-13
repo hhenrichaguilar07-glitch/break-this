@@ -12,7 +12,8 @@ penetration-testing exercise. This README is also your study guide: it explains
 
 ## 1. Setup & run
 
-You need Node.js 18+ installed.
+You need **Node.js 22.5+ (Node 24 recommended)** — the app uses the built-in
+`node:sqlite` module, which does not exist on Node 18/20.
 
 ```bash
 # 1. install dependencies

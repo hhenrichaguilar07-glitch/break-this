@@ -6,7 +6,7 @@
   --accent: #3b82f6;
   --border: #26333f;
   --danger: #f87171;
-  --ok: #34d399;
+  --ok: #4ade80;
 }
 
 * { box-sizing: border-box; }
@@ -31,16 +31,9 @@ body {
   padding: 2rem;
 }
 
-.card.wide { max-width: 560px; }
-
 h1 {
   margin: 0 0 1.25rem;
   font-size: 1.4rem;
-}
-
-h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
 }
 
 form { display: flex; flex-direction: column; }
@@ -49,11 +42,9 @@ label {
   font-size: 0.85rem;
   color: var(--muted);
   margin-bottom: 0.35rem;
-  display: block;
 }
 
 input {
-  width: 100%;
   margin-bottom: 1rem;
   padding: 0.65rem 0.75rem;
   font-size: 0.95rem;
@@ -103,60 +94,71 @@ button.secondary {
   line-height: 1.5;
 }
 
-.hidden { display: none !important; }
+/* --- additions for 2FA + audit UI --- */
+.wide { max-width: 460px; }
 
-/* Dashboard panels (2FA + audit) */
+.hidden { display: none; }
+
 .panel {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem 1.1rem;
-  margin: 1rem 0;
-  background: #131c25;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
 
-.panel img {
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+#qrImg {
   display: block;
-  margin: 0.5rem 0;
-  border-radius: 8px;
   background: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  margin: 0.5rem 0;
 }
 
 code {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.85rem;
-  color: var(--accent);
+  background: #0f1720;
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
   word-break: break-all;
 }
 
-/* Audit / user lists */
 .audit {
   list-style: none;
+  margin: 0.5rem 0 0;
   padding: 0;
-  margin: 0.25rem 0 0;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .audit li {
-  padding: 0.4rem 0;
+  padding: 0.3rem 0;
   border-bottom: 1px solid var(--border);
-  color: var(--muted);
+  word-break: break-all;
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.audit li:last-child { border-bottom: none; }
-
 .audit .ev { color: var(--text); font-weight: 600; }
-.audit .fail { color: var(--danger); }
-.audit .ok { color: var(--ok); }
+.audit .ev.ok { color: var(--ok); }
+.audit .ev.fail { color: var(--danger); }
 
-/* Decoy / honeypot dashboard */
+/* --- decoy / honeypot page (Layer 15) --- */
 .granted {
-  color: var(--ok);
+  background: #14351f;
+  color: #4ade80;
+  border: 1px solid #22c55e;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
   font-weight: 700;
+  font-size: 0.9rem;
   letter-spacing: 0.03em;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .decoy-img {
@@ -164,6 +166,100 @@ code {
   width: 100%;
   max-width: 400px;
   height: auto;
+  border: 1px solid var(--border);
   border-radius: 8px;
   margin: 0.5rem 0 1rem;
+}
+
+/* --- menacing "lair" login theme (login page only, scoped to body.lair) --- */
+body.lair {
+  background: radial-gradient(circle at 50% 28%, #3d0000 0%, #150000 55%, #000 100%);
+  color: #f6e9e9;
+}
+
+body.lair .card {
+  max-width: 420px;
+  background: rgba(22, 2, 2, 0.72);
+  border: 1px solid #5c0f0f;
+  box-shadow: 0 0 45px rgba(200, 0, 0, 0.35), inset 0 0 30px rgba(120, 0, 0, 0.22);
+  text-align: center;
+}
+
+body.lair form,
+body.lair #twofaStep { text-align: left; }
+
+.wolf {
+  display: block;
+  width: 100%;
+  max-width: 250px;
+  height: auto;
+  margin: 0 auto 1rem;
+  border-radius: 10px;
+  filter: drop-shadow(0 0 16px rgba(255, 0, 0, 0.55));
+  animation: breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 0, 0, 0.4)); }
+  50%      { filter: drop-shadow(0 0 28px rgba(255, 30, 30, 0.85)); }
+}
+
+.taunt-title {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ff2f2f;
+  text-shadow: 0 0 14px rgba(255, 0, 0, 0.75);
+  animation: flicker 5s infinite;
+}
+
+@keyframes flicker {
+  0%, 90%, 100% { opacity: 1; }
+  92% { opacity: 0.5; }
+  94% { opacity: 1; }
+  96% { opacity: 0.7; }
+  98% { opacity: 1; }
+}
+
+.taunt-sub {
+  margin: 0 0 1.4rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #d98d8d;
+}
+
+body.lair label { color: #e3a6a6; }
+
+body.lair input {
+  background: #1c0606;
+  border: 1px solid #5c0f0f;
+  color: #f6e9e9;
+}
+
+body.lair input:focus {
+  outline: 2px solid #ff2f2f;
+  outline-offset: 1px;
+  border-color: #ff2f2f;
+}
+
+body.lair button {
+  background: linear-gradient(180deg, #bd0000, #7d0000);
+  border: 1px solid #ff3b3b;
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+body.lair button:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.55);
+}
+
+body.lair .msg { color: #ff6b6b; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wolf, .taunt-title { animation: none; }
 }

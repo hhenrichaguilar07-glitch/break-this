@@ -1,7 +1,7 @@
 // dashboard.js — 2FA management + audit feed + logout.
-// All state-changing calls send a fresh CSRF token. Audit rows are rendered
-// with textContent (never innerHTML) so a script-looking stored value can't
-// inject markup — Layer 14 safety.
+// Perf: CSRF token comes from the page's <meta> tag and is cached for the whole
+// session (the dashboard never regenerates the session), so state-changing
+// calls need no extra /api/csrf round-trip. Audit rows use textContent only.
 
 const el = (id) => document.getElementById(id);
 
@@ -15,22 +15,24 @@ const secretText = el('secretText');
 const codeInput = el('twofaCode');
 const auditList = el('auditList');
 
-async function getCsrfToken() {
+let cachedCsrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || null;
+
+async function getCsrfToken(force) {
+  if (cachedCsrf && !force) return cachedCsrf;
   const res = await fetch('/api/csrf');
-  const data = await res.json();
-  return data.csrfToken;
+  cachedCsrf = (await res.json()).csrfToken;
+  return cachedCsrf;
 }
 
 async function postJson(url, body) {
-  const csrfToken = await getCsrfToken();
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-csrf-token': csrfToken,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const send = async (token) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  let res = await send(await getCsrfToken());
+  if (res.status === 403) res = await send(await getCsrfToken(true));
   let data = {};
   try { data = await res.json(); } catch (_) { /* no body */ }
   return { res, data };
@@ -41,10 +43,9 @@ function setMsg(text, ok) {
   twofaMsg.classList.toggle('ok', !!ok);
 }
 
-function show(node) { node.classList.remove('hidden'); }
-function hide(node) { node.classList.add('hidden'); }
+const show = (node) => node.classList.remove('hidden');
+const hide = (node) => node.classList.add('hidden');
 
-// Reflect the current 2FA state: either offer setup, or offer disable.
 async function loadStatus() {
   try {
     const res = await fetch('/api/2fa/status');
@@ -64,7 +65,6 @@ async function loadStatus() {
   }
 }
 
-// Begin enrollment: get a fresh secret + QR, then wait for a confirming code.
 async function startSetup() {
   setMsg('');
   try {
@@ -74,7 +74,6 @@ async function startSetup() {
       return;
     }
     secretText.textContent = data.secret;
-    // Cache-bust so the browser always fetches the QR for the new secret.
     qrImg.src = '/api/2fa/qr?t=' + encodeURIComponent(String(performance.now()));
     hide(twofaSetup);
     show(twofaQr);
@@ -84,7 +83,6 @@ async function startSetup() {
   }
 }
 
-// Confirm the code and flip 2FA on.
 async function enableTwofa() {
   setMsg('');
   const token = (codeInput.value || '').trim();
@@ -120,7 +118,7 @@ async function disableTwofa() {
   }
 }
 
-// Load the last 20 audit events. Built entirely with textContent — safe.
+// Last 20 audit events, built with textContent (XSS-safe).
 async function loadAudit() {
   try {
     const res = await fetch('/api/audit');
@@ -160,31 +158,22 @@ async function loadAudit() {
   }
 }
 
-// Wire up buttons.
-const startBtn = el('startTwofa');
-const enableBtn = el('enableTwofa');
-const disableBtn = el('disableTwofa');
-const logoutBtn = el('logoutBtn');
-
-if (startBtn) startBtn.addEventListener('click', startSetup);
-if (enableBtn) enableBtn.addEventListener('click', enableTwofa);
-if (disableBtn) disableBtn.addEventListener('click', disableTwofa);
+el('startTwofa') && el('startTwofa').addEventListener('click', startSetup);
+el('enableTwofa') && el('enableTwofa').addEventListener('click', enableTwofa);
+el('disableTwofa') && el('disableTwofa').addEventListener('click', disableTwofa);
 if (codeInput) {
   codeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); enableTwofa(); }
   });
 }
 
+const logoutBtn = el('logoutBtn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
-    try {
-      await postJson('/api/logout');
-    } finally {
-      window.location.href = '/';
-    }
+    try { await postJson('/api/logout'); }
+    finally { window.location.href = '/'; }
   });
 }
 
-// Initial load.
 loadStatus();
 loadAudit();

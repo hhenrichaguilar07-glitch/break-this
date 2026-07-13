@@ -1,6 +1,7 @@
 // server.js — login + dashboard hardened with defense-in-depth.
-// Layers 1–10 are the core; Layers 11–14 (2FA, password strength, audit
-// logging, progressive slow-down) are the added upgrades. See the README.
+// Layers 1–10 are the core; Layers 11–20 add 2FA, password strength, audit
+// logging, progressive slow-down, deception, encrypted secrets, honeypots,
+// IP-banning, a global rate limit and HTTPS enforcement. See the README.
 
 require('dotenv').config();
 
@@ -140,7 +141,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'"],
-      imgSrc: ["'self'"],        // QR code is served same-origin from /api/2fa/qr
+      imgSrc: ["'self'"],        // wolf.svg + QR code are served same-origin
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
@@ -168,13 +169,12 @@ app.use((req, res, next) => {
 });
 
 // --- Layer 18 (enforcement): banned IPs get nothing ---
-const globalLimiterPre = (req, res, next) => {
+app.use((req, res, next) => {
   if (isBanned(req.ip)) {
     return res.status(429).json({ error: 'Too many requests. Try again later.' });
   }
   next();
-};
-app.use(globalLimiterPre);
+});
 
 // --- Layer 19: global rate limit on every route (flood protection) ---
 const globalLimiter = rateLimit({
@@ -186,8 +186,11 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
+// Static assets. Long, immutable cache: the wolf/QR/styles rarely change and
+// this avoids re-downloading them on every visit.
 app.use('/static', express.static(path.join(__dirname, 'public'), {
-  maxAge: '1h',
+  maxAge: '7d',
+  immutable: true,
   index: false,
 }));
 
@@ -286,8 +289,7 @@ function requireAuth(req, res, next) {
 
 app.get('/', (req, res) => {
   if (req.session.userId) return res.redirect('/dashboard');
-  getCsrfToken(req);
-  res.type('html').send(loginPage());
+  res.type('html').send(loginPage(getCsrfToken(req)));
 });
 
 app.get('/api/csrf', (req, res) => {
@@ -295,7 +297,8 @@ app.get('/api/csrf', (req, res) => {
 });
 
 // ---- LOGIN (password step) ----
-app.post('/api/login', loginSpeedLimiter, loginLimiter, verifyCsrf, (req, res) => {
+// async so bcrypt.compare runs without blocking the event loop.
+app.post('/api/login', loginSpeedLimiter, loginLimiter, verifyCsrf, async (req, res) => {
   const { username, password } = req.body || {};
 
   // LAYER 15 — DECEPTION: an attack-looking username is sent to the decoy.
@@ -328,8 +331,13 @@ app.post('/api/login', loginSpeedLimiter, loginLimiter, verifyCsrf, (req, res) =
     return res.status(429).json({ error: 'Account temporarily locked. Try again later.' });
   }
 
-  // LAYER 8 — generic errors + timing-safe compare
-  const ok = bcrypt.compareSync(password, user ? user.password_hash : DUMMY_HASH);
+  // LAYER 8 — generic errors + timing-safe compare (always runs a compare)
+  let ok = false;
+  try {
+    ok = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+  } catch (e) {
+    return res.status(500).json({ error: 'Server error.' });
+  }
 
   if (!user || !ok) {
     if (user) {
@@ -412,7 +420,7 @@ app.post('/api/login/2fa', loginSpeedLimiter, verifyLimiter, verifyCsrf, (req, r
 
 // ---- DASHBOARD (protected) ----
 app.get('/dashboard', requireAuth, (req, res) => {
-  res.type('html').send(dashboardPage(escapeHtml(req.session.username)));
+  res.type('html').send(dashboardPage(escapeHtml(req.session.username), getCsrfToken(req)));
 });
 
 // ---- 2FA setup / management (all require an active session) ----
@@ -545,26 +553,30 @@ app.use((err, req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// HTML (no inline scripts/styles so the strict CSP holds).
+// HTML (no inline scripts/styles so the strict CSP holds). The CSRF token is
+// embedded in a <meta> tag so the front-end can use it without an extra fetch.
 // ---------------------------------------------------------------------------
-function loginPage() {
+function loginPage(csrfToken) {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Secure Login</title>
+  <meta name="csrf-token" content="${csrfToken}">
+  <title>Enter... if you dare</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body>
+<body class="lair">
   <main class="card">
-    <h1>Sign in</h1>
+    <img class="wolf" src="/static/wolf.svg" alt="The guardian">
+    <h1 class="taunt-title">Try me if you dare!!</h1>
+    <p class="taunt-sub">20 layers of defense stand between you and this door. Every move you make is watched, logged, and trapped. Go on&mdash;take your shot.</p>
     <form id="loginForm" autocomplete="off" novalidate>
       <label for="username">Username</label>
       <input id="username" name="username" autocomplete="username" required>
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button type="submit">Log in</button>
+      <button type="submit">Enter</button>
     </form>
     <div id="twofaStep" class="hidden">
       <label for="twofaCode">Authenticator code</label>
@@ -578,12 +590,13 @@ function loginPage() {
 </html>`;
 }
 
-function dashboardPage(safeUsername) {
+function dashboardPage(safeUsername, csrfToken) {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="${csrfToken}">
   <title>Dashboard</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>

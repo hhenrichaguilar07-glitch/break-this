@@ -1,8 +1,7 @@
-// login.js — handles the two-step login form.
-//   Step 1: username + password  -> POST /api/login
-//   Step 2: 6-digit 2FA code      -> POST /api/login/2fa   (only if 2FA is on)
-// Errors are shown inline (never a blocking alert), and the CSRF token is
-// fetched fresh and sent as a header on every state-changing request.
+// login.js — two-step login (password -> optional 2FA code).
+// Perf: the CSRF token is read from a <meta> tag the server embedded in the
+// page (no network round-trip). We only fall back to /api/csrf if it's missing
+// or the server rejects a stale token (which happens after session.regenerate).
 
 const form = document.getElementById('loginForm');
 const msg = document.getElementById('msg');
@@ -10,10 +9,28 @@ const twofaStep = document.getElementById('twofaStep');
 const twofaCode = document.getElementById('twofaCode');
 const verifyBtn = document.getElementById('verifyTwofa');
 
-async function getCsrfToken() {
+let cachedCsrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || null;
+
+async function getCsrfToken(force) {
+  if (cachedCsrf && !force) return cachedCsrf;
   const res = await fetch('/api/csrf');
-  const data = await res.json();
-  return data.csrfToken;
+  cachedCsrf = (await res.json()).csrfToken;
+  return cachedCsrf;
+}
+
+// POST JSON with the cached CSRF token; on a 403 (stale token) refetch once.
+async function postJson(url, body) {
+  const send = async (token) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+      body: JSON.stringify(body),
+    });
+  let res = await send(await getCsrfToken());
+  if (res.status === 403) res = await send(await getCsrfToken(true));
+  let data = {};
+  try { data = await res.json(); } catch (_) { /* no body */ }
+  return { res, data };
 }
 
 function showError(text) {
@@ -21,11 +38,10 @@ function showError(text) {
   msg.textContent = text;
 }
 
-// Reveal the 2FA prompt and hide the password form.
 function enterTwoFactorStep() {
   form.classList.add('hidden');
   twofaStep.classList.remove('hidden');
-  msg.classList.remove('ok');
+  showError('');
   msg.textContent = 'Enter the 6-digit code from your authenticator app.';
   twofaCode.value = '';
   twofaCode.focus();
@@ -34,32 +50,19 @@ function enterTwoFactorStep() {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   showError('');
-
   try {
-    const csrfToken = await getCsrfToken();
-
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-csrf-token': csrfToken,
-      },
-      body: JSON.stringify({
-        username: document.getElementById('username').value,
-        password: document.getElementById('password').value,
-      }),
+    const { res, data } = await postJson('/api/login', {
+      username: document.getElementById('username').value,
+      password: document.getElementById('password').value,
     });
 
-    const data = await res.json();
-
     if (res.ok && data.twoFactorRequired) {
-      // Password was correct but 2FA is enabled — ask for the code.
+      // Session regenerated on the server — our cached token is now stale.
+      cachedCsrf = null;
       enterTwoFactorStep();
     } else if (res.ok && data.ok && data.redirect) {
-      // Either a full login (no 2FA) or the decoy redirect for attack payloads.
-      window.location.href = data.redirect;
+      window.location.href = data.redirect; // real login OR decoy
     } else {
-      // Generic message on purpose — don't reveal which field was wrong.
       showError(data.error || 'Login failed.');
     }
   } catch (err) {
@@ -74,20 +77,8 @@ async function submitTwoFactor() {
     showError('Enter the 6-digit code.');
     return;
   }
-
   try {
-    const csrfToken = await getCsrfToken();
-    const res = await fetch('/api/login/2fa', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-csrf-token': csrfToken,
-      },
-      body: JSON.stringify({ token }),
-    });
-
-    const data = await res.json();
-
+    const { res, data } = await postJson('/api/login/2fa', { token });
     if (res.ok && data.ok && data.redirect) {
       window.location.href = data.redirect;
     } else {
@@ -98,14 +89,9 @@ async function submitTwoFactor() {
   }
 }
 
-if (verifyBtn) {
-  verifyBtn.addEventListener('click', submitTwoFactor);
-}
+if (verifyBtn) verifyBtn.addEventListener('click', submitTwoFactor);
 if (twofaCode) {
   twofaCode.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitTwoFactor();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); submitTwoFactor(); }
   });
 }
