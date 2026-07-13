@@ -4,15 +4,26 @@
 // KEY LESSON: the password is hashed with bcrypt (cost factor 12) before it
 // ever touches the database. If someone dumps your DB, they get hashes, not
 // passwords. bcrypt is deliberately slow, which makes cracking the hashes hard.
+//
+// LAYER 12: the password is checked against the strength rules in validators.js
+// BEFORE the account is created, so a weak demo password can't sneak in.
 
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const db = require('./db');
+const { passwordStrengthErrors } = require('./validators');
 
 // ---- CHANGE THESE before the exam ----
 const username = 'admin';
 const plainPassword = 'Ch4nge-Me_Before-Exam!';
 // ---------------------------------------
+
+// Layer 12 — refuse to seed a weak password.
+const weaknesses = passwordStrengthErrors(plainPassword);
+if (weaknesses.length) {
+  console.error('Refusing to seed: password must include ' + weaknesses.join(', ') + '.');
+  process.exit(1);
+}
 
 const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
 if (existing) {

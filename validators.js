@@ -1,17 +1,14 @@
-// validators.js — LAYER 5: INPUT VALIDATION (allow-list, not block-list).
+// validators.js — input validation helpers.
 //
-// Pulled into its own module so the rules live in one place, are easy to
-// unit-test, and can be reused by any route. The idea: reject anything that
-// isn't a plausible username/password *before* it ever reaches the database or
-// the credential check. An allow-list ("only these characters are OK") is far
-// safer than a block-list ("ban these bad characters"), because you can't
-// forget to ban something.
+// LAYER 5: allow-list validation of the login username/password (centralized
+// so the rules live in one place and are easy to test).
+// LAYER 12: password-strength rules, enforced when an account is seeded (and
+// reusable for any future sign-up flow).
 
+// --- Layer 5: login allow-list ---
 // Only letters, digits, underscore and dot are allowed in a username.
-// Anything else (quotes, spaces, angle brackets, SQL metacharacters) is out.
 const USERNAME_RE = /^[a-zA-Z0-9_.]+$/;
 
-// Length bounds. The upper caps also blunt oversized-input abuse.
 const LIMITS = {
   username: { min: 3, max: 32 },
   password: { min: 1, max: 200 },
@@ -34,9 +31,36 @@ function isValidPassword(password) {
   );
 }
 
-// Convenience: both must be valid for a login attempt to proceed.
 function validateLogin(username, password) {
   return isValidUsername(username) && isValidPassword(password);
+}
+
+// --- Layer 12: password strength ---
+// A small blocklist of the most common passwords. Case-insensitive.
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', 'passw0rd', '123456', '1234567',
+  '12345678', '123456789', 'qwerty', 'qwerty123', 'abc123', 'admin',
+  'admin123', 'root', 'toor', 'letmein', 'welcome', 'welcome1', 'monkey',
+  'iloveyou', 'dragon', 'sunshine', 'princess', 'football', 'baseball',
+  '111111', '000000', '123123', 'changeme', 'secret', 'test1234',
+]);
+
+// Returns an array of unmet requirements (empty array = strong enough).
+function passwordStrengthErrors(pw) {
+  const errors = [];
+  if (typeof pw !== 'string' || pw.length < 10) errors.push('at least 10 characters');
+  if (!/[a-z]/.test(pw)) errors.push('a lowercase letter');
+  if (!/[A-Z]/.test(pw)) errors.push('an uppercase letter');
+  if (!/[0-9]/.test(pw)) errors.push('a number');
+  if (!/[^A-Za-z0-9]/.test(pw)) errors.push('a symbol');
+  if (typeof pw === 'string' && COMMON_PASSWORDS.has(pw.toLowerCase())) {
+    errors.push('not a common/guessable password');
+  }
+  return errors;
+}
+
+function isStrongPassword(pw) {
+  return passwordStrengthErrors(pw).length === 0;
 }
 
 module.exports = {
@@ -45,4 +69,7 @@ module.exports = {
   isValidUsername,
   isValidPassword,
   validateLogin,
+  COMMON_PASSWORDS,
+  passwordStrengthErrors,
+  isStrongPassword,
 };
