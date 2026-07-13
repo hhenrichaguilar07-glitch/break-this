@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const path = require('path');
 
 const db = require('./db');
+const { validateLogin } = require('./validators');
 
 if (!process.env.SESSION_SECRET) {
   console.error('FATAL: SESSION_SECRET is not set. Copy .env.example to .env and set it.');
@@ -168,13 +169,8 @@ app.post('/api/login', loginLimiter, verifyCsrf, (req, res) => {
 
   // ---- LAYER 5 — INPUT VALIDATION (allow-list, not block-list) ----
   // Reject anything that isn't a plausible username/password up front.
-  if (
-    typeof username !== 'string' ||
-    typeof password !== 'string' ||
-    username.length < 3 || username.length > 32 ||
-    password.length < 1 || password.length > 200 ||
-    !/^[a-zA-Z0-9_.]+$/.test(username)
-  ) {
+  // Rules live in validators.js so they're centralized and easy to test.
+  if (!validateLogin(username, password)) {
     return res.status(400).json({ error: 'Invalid input.' });
   }
 
