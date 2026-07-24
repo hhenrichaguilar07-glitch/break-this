@@ -12,8 +12,7 @@ penetration-testing exercise. This README is also your study guide: it explains
 
 ## 1. Setup & run
 
-You need **Node.js 22.5+ (Node 24 recommended)** — the app uses the built-in
-`node:sqlite` module, which does not exist on Node 18/20.
+You need Node.js 18+ installed.
 
 ```bash
 # 1. install dependencies
@@ -93,14 +92,14 @@ rate limit, and HTTPS enforcement.
 - **Why it works:** the `?` placeholder binds user input as *data*, so a payload
   like `' OR '1'='1' --` is treated as a literal (nonexistent) username, not as
   SQL. It cannot change the meaning of the query.
-- **Test:** put `' OR '1'='1' --` in the username field. On this app: the
-  deception layer sends it to the decoy (see Layer 15). On a **vulnerable**
-  target, that same payload might log you straight in — the classic auth-bypass.
+- **Test:** put `' OR '1'='1' --` in the username field. On this app: normal
+  "invalid credentials." On a **vulnerable** target, that same payload might log
+  you straight in — that's the classic auth-bypass.
 
 ### Layer 7 — Per-account lockout
 - **Stops:** brute-force focused on one specific account (a second, independent
   limit alongside the IP rate limit).
-- **Test:** fail login 5 times for the same user — the account is locked for
+- **Test:** fail login 5 times for the same user → the account is locked for
   15 minutes even from a different IP.
 
 ### Layer 8 — Generic errors + timing-safe check
@@ -172,7 +171,7 @@ rate limit, and HTTPS enforcement.
 - **Why it's clever:** the attacker thinks every layer fell and they're inside,
   so they stop trying — while the **real** dashboard is untouched, still locked
   behind a correct password + 2FA. It also buys you time and logs the attempt.
-- **Important — what this is and isn't:** your layers are not a staircase the
+- **Important — what this is and isn't:** your 15 layers are not a staircase the
   attacker climbs one step at a time; they're independent locks on one door. So
   this isn't literally "one picture per layer." It's a single trap that fires on
   attack behavior and *fakes* total success. The decoy is **psychological** — it
@@ -280,7 +279,7 @@ through the list is also how you confirm your own build is solid.
 
 - **Day 1–2:** Read every commented section of `server.js`. For each LAYER,
   say out loud what attack it stops. Run the app and log in.
-- **Day 3:** Run all the self-tests in Section 2 against your own app. Watch
+- **Day 3:** Run all ten self-tests in Section 2 against your own app. Watch
   each defense trigger.
 - **Day 4:** Study the OWASP Top 10 and match each item to a layer here.
 - **Day 5:** Practice the Section 3 methodology against *your own* app in a
