@@ -6,7 +6,6 @@
   --accent: #3b82f6;
   --border: #26333f;
   --danger: #f87171;
-  --ok: #4ade80;
 }
 
 * { box-sizing: border-box; }
@@ -86,8 +85,6 @@ button.secondary {
   color: var(--danger);
 }
 
-.msg.ok { color: var(--ok); }
-
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
@@ -139,14 +136,7 @@ code {
   padding: 0.3rem 0;
   border-bottom: 1px solid var(--border);
   word-break: break-all;
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
 }
-
-.audit .ev { color: var(--text); font-weight: 600; }
-.audit .ev.ok { color: var(--ok); }
-.audit .ev.fail { color: var(--danger); }
 
 /* --- decoy / honeypot page (Layer 15) --- */
 .granted {
